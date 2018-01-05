@@ -9,3 +9,10 @@ before_script:
     - psql -c 'create database mosql;' -U postgres
 env:
   - MONGOSQL_TEST_SQL=postgres://localhost/mosql
+
+deploy:
+  provider: script
+  script: ./publish.sh
+  skip_cleanup: true
+  on:
+    branch: master
