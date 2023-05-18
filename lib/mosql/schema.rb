@@ -299,7 +299,7 @@ module MoSQL
         pg.put_copy_end
         begin
           pg.get_result.check
-        rescue PGError => e
+        rescue PG::Error => e
           db.send(:raise_error, e)
         end
       end

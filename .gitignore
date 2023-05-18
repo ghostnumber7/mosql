@@ -1,3 +1,5 @@
 collections.yml
 /.bundle/
 Gemfile.lock
+mosql-*.gem
+vendor
