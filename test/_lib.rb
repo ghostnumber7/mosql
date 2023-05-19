@@ -1,6 +1,6 @@
 require 'rubygems'
 require 'bundler/setup'
-
+require 'bson'
 require 'minitest/autorun'
 require 'minitest/spec'
 require 'mocha'
