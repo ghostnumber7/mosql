@@ -1,7 +1,5 @@
 FROM ruby:3.0.2
 
-RUN echo "Resetting build cache :P"
-
 RUN gem install bundler
 RUN mkdir /app
 
