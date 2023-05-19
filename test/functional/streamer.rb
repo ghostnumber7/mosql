@@ -1,6 +1,5 @@
 require File.join(File.dirname(__FILE__), '_lib.rb')
 require 'mosql/cli'
-require 'bson'
 
 class MoSQL::Test::Functional::StreamerTest < MoSQL::Test::Functional
   def build_streamer
@@ -73,7 +72,7 @@ composite_key_test:
 EOF
 
     before do
-      @map = MoSQL::Schema.new(YAML.unsafe_load(TEST_MAP))
+      @map = MoSQL::Schema.new(YAML.load(TEST_MAP))
       @adapter = MoSQL::SQLAdapter.new(@map, sql_test_uri)
 
       @sequel.drop_table?(:sqltable)
@@ -324,7 +323,7 @@ test:
       - var: INTEGER
 EOF
     before do
-      @map = MoSQL::Schema.new(YAML.unsafe_load(ALIAS_MAP))
+      @map = MoSQL::Schema.new(YAML.load(ALIAS_MAP))
       @adapter = MoSQL::SQLAdapter.new(@map, sql_test_uri)
 
       @sequel.drop_table?(:sqltable)
@@ -361,7 +360,7 @@ db:
 EOF
 
     before do
-      @map = MoSQL::Schema.new(YAML.unsafe_load(TIMESTAMP_MAP))
+      @map = MoSQL::Schema.new(YAML.load(TIMESTAMP_MAP))
       @adapter = MoSQL::SQLAdapter.new(@map, sql_test_uri)
 
       mongo.use('db')['has_timestamp'].drop

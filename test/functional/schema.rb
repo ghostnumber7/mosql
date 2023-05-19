@@ -32,7 +32,7 @@ db:
 EOF
 
   before do
-    @map = MoSQL::Schema.new(YAML.unsafe_load(TEST_MAP))
+    @map = MoSQL::Schema.new(YAML.load(TEST_MAP))
 
     @sequel.drop_table?(:sqltable)
     @sequel.drop_table?(:sqltable2)
@@ -119,7 +119,7 @@ db:
 EOF
 
     before do
-      @specialmap = MoSQL::Schema.new(YAML.unsafe_load(SPECIAL_MAP))
+      @specialmap = MoSQL::Schema.new(YAML.load(SPECIAL_MAP))
 
       @sequel.drop_table?(:special)
       @specialmap.create_schema(@sequel)
