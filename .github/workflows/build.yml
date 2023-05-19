@@ -13,7 +13,7 @@ jobs:
       packages: write
 
     env:
-      # BUNDLE_RUBYGEMS__PKG__GITHUB__COM: ${{secrets.BUNDLE_RUBYGEMS__PKG__GITHUB__COM}}
+      BUNDLE_RUBYGEMS__PKG__GITHUB__COM: ${{ github.repository_owner }}:${{secrets.GITHUB_TOKEN}}
       MONGOSQL_TEST_SQL: postgres://postgres:postgres@localhost:5432/mosql
 
     services:
