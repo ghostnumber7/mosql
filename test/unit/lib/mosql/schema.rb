@@ -60,7 +60,7 @@ EOF
 
   before do
     Sequel.extension(:pg_array)
-    @map = MoSQL::Schema.new(YAML.load(TEST_MAP))
+    @map = MoSQL::Schema.new(YAML.unsafe_load(TEST_MAP))
   end
 
   it 'Loads the schema' do
@@ -311,7 +311,7 @@ db:
       - var: INTEGER
 EOF
     before do
-      @map = MoSQL::Schema.new(YAML.load(ALIAS_MAP))
+      @map = MoSQL::Schema.new(YAML.unsafe_load(ALIAS_MAP))
     end
 
     it 'can look up collections by aliases' do
@@ -374,7 +374,7 @@ db:
 EOF
 
     before do
-      @othermap = MoSQL::Schema.new(YAML.load(OTHER_MAP))
+      @othermap = MoSQL::Schema.new(YAML.unsafe_load(OTHER_MAP))
     end
 
     it 'translates $timestamp' do
@@ -422,7 +422,7 @@ db:
 EOF
 
     it 'handles dotted names' do
-      @map = MoSQL::Schema.new(YAML.load(MAP))
+      @map = MoSQL::Schema.new(YAML.unsafe_load(MAP))
       collections = @map.collections_for_mongo_db('db')
       assert(collections.include?('my.collection'),
         "#{collections} doesn't include `my.collection`")
