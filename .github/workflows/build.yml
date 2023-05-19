@@ -13,7 +13,7 @@ jobs:
       packages: write
 
     env:
-      BUNDLE_RUBYGEMS__PKG__GITHUB__COM: ghostnumber7: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
+      BUNDLE_RUBYGEMS__PKG__GITHUB__COM: ${{secrets.BUNDLE_RUBYGEMS__PKG__GITHUB__COM}}
 
     # container: node:12.16.1-stretch
 
