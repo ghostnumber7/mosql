@@ -5,9 +5,11 @@ RUN echo "Resetting build cache :P"
 RUN gem install bundler
 RUN mkdir /app
 
-RUN apt update -qq && apt install -y git
+RUN apt update -qq && apt install -y git vim
 
-RUN cd /app && git clone https://github.com/ghostnumber7/mosql && cd mosql && \
-  bundler install && gem build mosql.gemspec && bundler exec gem install mosql-0.5.1.gem
+RUN cd /app && git clone https://github.com/ghostnumber7/mongoriver.git && git clone https://github.com/ghostnumber7/mosql
+
+RUN cd /app/mongoriver && bundle install && bundler exec rake build && bundler exec rake install
+RUN cd /app/mosql && bundle install && bundler exec rake build && bundler exec rake install
 
 CMD [ "bash" ]
