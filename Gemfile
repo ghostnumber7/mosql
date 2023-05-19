@@ -1,7 +1,5 @@
 source 'https://rubygems.org'
 
-git 'https://github.com/ghostnumber7/mongoriver.git' do
-  gem 'mongoriver', '~> 1.3'
-end
+gem 'mongoriver', '~> 1.3', :github => 'ghostnumber7/mongoriver'
 
 gemspec
