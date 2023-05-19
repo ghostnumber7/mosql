@@ -28,7 +28,6 @@ Gem::Specification.new do |gem|
 
   gem.add_runtime_dependency "mongo", "2.18.2"
   gem.add_runtime_dependency "bson", "4.15.0"
-  gem.add_runtime_dependency "bson_ext", "1.5.1"
 
   gem.add_development_dependency "minitest", "5.18.0"
   gem.add_development_dependency "mocha", "2.0.2"

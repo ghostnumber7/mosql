@@ -3,7 +3,6 @@ PATH
   specs:
     mosql (0.5.1)
       bson (= 4.15.0)
-      bson_ext (= 1.5.1)
       json (= 2.6.3)
       log4r (= 1.1.10)
       mongo (= 2.18.2)
