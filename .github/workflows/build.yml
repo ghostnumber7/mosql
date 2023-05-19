@@ -13,9 +13,8 @@ jobs:
       packages: write
 
     env:
-      BUNDLE_RUBYGEMS__PKG__GITHUB__COM: ${{secrets.BUNDLE_RUBYGEMS__PKG__GITHUB__COM}}
-
-    # container: node:12.16.1-stretch
+      # BUNDLE_RUBYGEMS__PKG__GITHUB__COM: ${{secrets.BUNDLE_RUBYGEMS__PKG__GITHUB__COM}}
+      MONGOSQL_TEST_SQL: postgres://postgres:postgres@localhost:5432/mosql
 
     services:
       postgres:
@@ -38,17 +37,20 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: 3.0
-          bundler-cache: true
-      - name: Test
-        run: |
-          bundle exec rake test
-      - name: Publish to GPR
+      - name: Build & Test
         run: |
           mkdir -p $HOME/.gem
           touch $HOME/.gem/credentials
           chmod 0600 $HOME/.gem/credentials
           printf -- "---\n:github: ${GEM_HOST_API_KEY}\n" > $HOME/.gem/credentials
-          bundler exec rake build
+          gem install bundler
+          bundle config set --local deployment 'true'
+          bundle install --jobs 4 --retry 3
+          bundle exec rake build
+          bundle exec rake install
+          bundle exec rake test
+      - name: Publish to GPR
+        run: |
           gem push --KEY github --host https://rubygems.pkg.github.com/${OWNER} pkg/*.gem
         env:
           GEM_HOST_API_KEY: "Bearer ${{secrets.GITHUB_TOKEN}}"
