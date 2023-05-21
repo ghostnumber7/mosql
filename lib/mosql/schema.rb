@@ -72,7 +72,7 @@ module MoSQL
       end
 
       # Lurky way to force Sequel force all timestamps to use UTC.
-      Sequel.default_timezone = :utc
+      Sequel.default_timezone = :local
     end
 
     def create_schema(db, clobber=false)
@@ -213,7 +213,6 @@ module MoSQL
 
       row = []
       schema[:columns].each do |col|
-
         source = col[:source]
         type = col[:type]
 
@@ -222,7 +221,10 @@ module MoSQL
         else
           v = fetch_and_delete_dotted(obj, source)
           case v
+          when Mongo::DBRef # Mongo::DBRef is also a Hash, we want to treat it as a primitive
+            v = transform_primitive(v, type)
           when Hash
+            puts "WARNING: DBRef in document, not supported. #{v.inspect}"
             v = JSON.dump(Hash[v.map { |k,v| [k, transform_primitive(v)] }])
           when Array
             v = v.map { |it| transform_primitive(it) }

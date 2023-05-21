@@ -197,13 +197,12 @@ EOF
 
     it 'extracts object ids from a DBRef' do
       oid = BSON::ObjectId.new
-      out = @map.transform('db.collection', {'_id' => "row 1",
-          'str' => Mongo::DBRef.new('db.otherns', oid)})
+      out = @map.transform('db.collection', { '_id' => "row 1", "str" => Mongo::DBRef.new('db.otherns', oid) })
       assert_equal(["row 1", nil, oid.to_s, nil], out)
     end
 
     it 'converts DBRef to object id in arrays' do
-      oid = [ BSON::ObjectId.new, BSON::ObjectId.new]
+      oid = [ BSON::ObjectId.new, BSON::ObjectId.new ]
       o = {'_id' => "row 1", "str" => [ Mongo::DBRef.new('db.otherns', oid[0]), Mongo::DBRef.new('db.otherns', oid[1]) ] }
       out = @map.transform('db.collection', o)
       assert_equal(["row 1", nil, JSON.dump(oid.map! {|o| o.to_s}), nil ], out)
