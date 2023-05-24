@@ -32,8 +32,8 @@ module MoSQL
     def read_state
       row = @table.where(:service => @service).first
       return nil unless row
-      # Again, try to do seamless upgrades - 
-      # If latest operation before or at timestamp if no position 
+      # Again, try to do seamless upgrades -
+      # If latest operation before or at timestamp if no position
       # exists, use timestamp in database to guess what it could be.
       result = {}
       result['time'] = Time.at(row.fetch(:timestamp))

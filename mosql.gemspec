@@ -24,7 +24,7 @@ Gem::Specification.new do |gem|
   gem.add_runtime_dependency "yaml", "0.1.1"
   gem.add_runtime_dependency "psych", "3.3.0"
 
-  gem.add_runtime_dependency "mongoriver", "1.3.0"
+  gem.add_runtime_dependency "mongoriver", "1.3.1"
 
   gem.add_runtime_dependency "mongo", "2.18.2"
   gem.add_runtime_dependency "bson", "4.15.0"

@@ -139,7 +139,7 @@ module MoSQL
         did_truncate[table.first_source] = true
       end
 
-      start    = Time.now
+      start = Time.now
       sql_time = 0
       with_retries do
         collection.find(filter, :batch_size => BATCH).each do |obj|
@@ -218,7 +218,7 @@ module MoSQL
         if collection_name == 'system.indexes'
           log.info("Skipping index update: #{op.inspect}")
         else
-          unsafe_handle_exceptions(ns, op['o'])  do
+          unsafe_handle_exceptions(ns, op['o']) do
             @sql.upsert_ns(ns, op['o'])
           end
         end

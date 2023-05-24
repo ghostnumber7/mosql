@@ -224,7 +224,6 @@ module MoSQL
           when Mongo::DBRef # Mongo::DBRef is also a Hash, we want to treat it as a primitive
             v = transform_primitive(v, type)
           when Hash
-            puts "WARNING: DBRef in document, not supported. #{v.inspect}"
             v = JSON.dump(Hash[v.map { |k,v| [k, transform_primitive(v)] }])
           when Array
             v = v.map { |it| transform_primitive(it) }

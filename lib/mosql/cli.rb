@@ -76,7 +76,7 @@ module MoSQL
         end
 
         opts.on("--tail-from [timestamp]", "Start tailing from the specified UNIX timestamp") do |ts|
-          @options[:tail_from] = ts
+          @options[:tail_from] = BSON::Timestamp.new(ts.to_i, 0)
         end
 
         opts.on("--service [service]", "Service name to use when storing tailing state") do |service|
