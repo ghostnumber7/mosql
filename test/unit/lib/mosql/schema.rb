@@ -242,6 +242,10 @@ EOF
       assert_equal(%Q{\\\n}, @map.quote_copy( %Q{\n}))
       assert_equal(%Q{some text}, @map.quote_copy(%Q{some text}))
     end
+
+    it 'removes invalid characters' do
+      assert_equal(%Q{something}, @map.quote_copy(%Q{\u0000some\u0000thing\u0000}))
+    end
   end
 
   describe 'fetch_and_delete_dotted' do

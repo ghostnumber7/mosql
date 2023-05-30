@@ -16,7 +16,7 @@ module MoSQL
         instance_variable_set(:"@#{parm.to_s}", opts[parm])
       end
 
-      @done    = false
+      @done = false
     end
 
     def stop
@@ -52,14 +52,17 @@ module MoSQL
       begin
         @schema.copy_data(table.db, ns, items)
       rescue Sequel::DatabaseError => e
-        log.debug("Bulk insert error (#{e}), attempting invidual upserts...")
-        cols = @schema.all_columns(@schema.find_ns(ns))
-        items.each do |it|
-          h = {}
-          cols.zip(it).each { |k,v| h[k] = v }
-          unsafe_handle_exceptions(ns, h) do
-            @sql.upsert!(table, @schema.primary_sql_key_for_ns(ns), h)
-          end
+        bulk_upsert_each(table, ns, items)
+      end
+    end
+
+    def bulk_upsert_each(table, ns, items)
+      cols = @schema.all_columns(@schema.find_ns(ns))
+      items.each do |it|
+        h = {}
+        cols.zip(it).each { |k,v| h[k] = v }
+        unsafe_handle_exceptions(ns, h) do
+          @sql.upsert!(table, @schema.primary_sql_key_for_ns(ns), h)
         end
       end
     end
@@ -68,11 +71,14 @@ module MoSQL
       tries.times do |try|
         begin
           yield
-        rescue Mongo::ConnectionError, Mongo::ConnectionFailure, Mongo::OperationFailure => e
+          break
+        rescue Mongo::Error::OperationFailure => e
+          # TODO: Should allow some PG errors to be retried
+          # TODO: Reconnect cursor somehow if it times out? At least for imports as they are expensive to restart
           # Duplicate key error
-          raise if e.kind_of?(Mongo::OperationFailure) && [11000, 11001].include?(e.error_code)
+          raise if e.kind_of?(Mongo::Error::OperationFailure) && [11000, 11001].include?(e.error_code)
           # Cursor timeout
-          raise if e.kind_of?(Mongo::OperationFailure) && e.message =~ /^Query response returned CURSOR_NOT_FOUND/
+          raise if e.kind_of?(Mongo::Error::OperationFailure) && e.message =~ /^Query response returned CURSOR_NOT_FOUND/
           delay = 0.5 * (1.5 ** try)
           log.warn("Mongo exception: #{e}, sleeping #{delay}s...")
           sleep(delay)
@@ -105,24 +111,29 @@ module MoSQL
         dbnames = @mongo.database_names
       end
 
-      dbnames.each do |dbname|
-        spec = @schema.find_db(dbname)
+      threads = 0
 
-        if(spec.nil?)
-          log.info("Mongd DB '#{dbname}' not found in config file. Skipping.")
-          next
-        end
-
-        log.info("Importing for Mongo DB #{dbname}...")
-        db = @mongo.use(dbname)
-        collections = db.collections.select { |c| spec.key?(c.name) }
-
-        collections.each do |collection|
-          ns = "#{dbname}.#{collection.name}"
-          import_collection(ns, collection, spec[collection.name][:meta][:filter])
-          exit(0) if @done
-        end
+      if options[:threads] && options[:threads].is_a?(Numeric) && options[:threads] >= 1
+        threads = options[:threads].to_i
+        log.info "Using #{threads} threads"
       end
+
+      items = dbnames
+        .map { |dbname| [dbname, @schema.find_db(dbname)] }
+        .filter { |dbname, spec| spec }
+        .map { |dbname, spec| [dbname, spec, @mongo.use(dbname).collections] }
+        .flat_map { |dbname, spec, collections| collections.map { |collection| [dbname, spec, collection] } }
+        .filter { |dbname, spec, collection| spec[collection.name] }
+
+      Parallel.each(items, in_threads: threads) do |dbname, spec, collection|
+        ns = "#{dbname}.#{collection.name}"
+        import_collection(ns, collection, spec[collection.name][:meta][:filter])
+        # TODO: Should use Paralell::Kill instead of exit?
+        # raise Parallel::Kill if @done
+        exit(0) if @done
+      end
+
+      exit(0) if @done
 
       tailer.save_state(start_state) unless options[:skip_tail]
     end
@@ -151,7 +162,7 @@ module MoSQL
               bulk_upsert(table, ns, batch)
             end
             elapsed = Time.now - start
-            log.info("Imported #{count} rows (#{elapsed}s, #{sql_time}s SQL)...")
+            log.info("Imported #{count} rows for #{ns} (#{elapsed}s, #{sql_time}s SQL)...")
             batch.clear
             exit(0) if @done
           end
@@ -161,6 +172,12 @@ module MoSQL
       unless batch.empty?
         bulk_upsert(table, ns, batch)
       end
+
+      elapsed = Time.now - start
+      log.info("Finished importing #{count} rows for #{ns} (#{elapsed}s, #{sql_time}s SQL)...")
+
+      # Disconnect needed for Parallel, or we keep opened connections for each thread when done
+      table.db.disconnect
     end
 
     def optail

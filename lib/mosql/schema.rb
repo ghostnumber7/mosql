@@ -58,6 +58,9 @@ module MoSQL
     end
 
     def initialize(map)
+      # Lurky way to force Sequel force all timestamps to use UTC.
+      Sequel.default_timezone = :utc
+
       @map = {}
       map.each do |dbname, db|
         @map[dbname] = { :meta => parse_meta(db[:meta]) }
@@ -71,8 +74,6 @@ module MoSQL
         end
       end
 
-      # Lurky way to force Sequel force all timestamps to use UTC.
-      Sequel.default_timezone = :local
     end
 
     def create_schema(db, clobber=false)
@@ -87,7 +88,7 @@ module MoSQL
             collection[:columns].each do |col|
               opts = {}
               if col[:source] == '$timestamp'
-                opts[:default] = Sequel.function(:now)
+                opts[:default] = Sequel.lit("timezone('UTC', NOW())")
               end
               column col[:name], col[:type], opts
 
@@ -291,17 +292,47 @@ module MoSQL
     def copy_data(db, ns, objs)
       schema = find_ns!(ns)
       db.synchronize do |pg|
-        sql = "COPY \"#{schema[:meta][:table]}\" " +
-          "(#{all_columns_for_copy(schema).map {|c| "\"#{c}\""}.join(",")}) FROM STDIN"
-        pg.execute(sql)
-        objs.each do |o|
-          pg.put_copy_data(transform_to_copy(ns, o, schema) + "\n")
-        end
-        pg.put_copy_end
+        # TODO:
+        table_primary_keys = primary_sql_key_for_ns(ns).map {|c| "\"#{c}\""}
+        tmp_name = "#{schema[:meta][:table]}_tmp_#{(rand * 10000).to_i}"
+
+        pg.execute("BEGIN")
         begin
-          pg.get_result.check
-        rescue PG::Error => e
+          pg.execute("CREATE TEMP TABLE \"#{tmp_name}\" (LIKE \"#{schema[:meta][:table]}\") ON COMMIT DROP")
+          pg.get_last_result
+
+          all_columns = all_columns_for_copy(schema).map {|c| "\"#{c}\""}.join(",")
+          all_columns_excluded = all_columns_for_copy(schema)
+            .reject {|c| table_primary_keys.include?("\"#{c}\"")}
+            .map {|c| "\"#{c}\" = EXCLUDED.\"#{c}\""}
+            .join(",")
+
+          pg.copy_data("COPY \"#{tmp_name}\" (#{all_columns}) FROM STDIN") do
+            objs.each do |o|
+              pg.put_copy_data(transform_to_copy(ns, o, schema) + "\n")
+            end
+          end
+
+          pg.get_last_result
+
+          sql = "INSERT INTO \"#{schema[:meta][:table]}\" (#{all_columns}) " +
+          "(SELECT #{all_columns} FROM \"#{tmp_name}\") " +
+          "ON CONFLICT (#{table_primary_keys.join(",")}) DO #{
+            # This happens if the only column is the primary key
+            if all_columns_excluded.empty?
+              "NOTHING"
+            else
+              "UPDATE SET #{all_columns_excluded}"
+            end
+          }"
+
+          pg.execute(sql)
+          pg.get_last_result
+        rescue => e
+          pg.execute("ROLLBACK")
           db.send(:raise_error, e)
+        else
+          pg.execute("COMMIT")
         end
       end
     end
@@ -319,9 +350,12 @@ module MoSQL
       when DateTime, Time
         val.strftime("%FT%T.%6N %z")
       when Sequel::SQL::Blob
-        "\\\\x" + [val].pack("h*")
+        "\\\\x#{val.unpack("H*").first}"
+      when Sequel::Postgres::PGArray
+        arr = val.map { |v| quote_copy(v) }.join(',')
+        "{#{arr}}"
       else
-        val.to_s.gsub(/([\\\t\n\r])/, '\\\\\\1')
+        val.to_s.gsub(/([\\\t\n\r])/, '\\\\\\1').gsub(/[\0]/, '')
       end
     end
 

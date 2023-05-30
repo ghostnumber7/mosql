@@ -136,10 +136,10 @@ EOF
         {'_id' => "a"},
         {'_id' => "b"}
       ]
-      before = @sequel.select(Sequel.function(:NOW)).first[:now]
+      before = @sequel.select(Sequel.lit("timezone('UTC', NOW())")).first[:timezone]
       @specialmap.copy_data(@sequel, 'db.collection',
                             objects.map { |o| @specialmap.transform('db.collection', o) } )
-      after = @sequel.select(Sequel.function(:NOW)).first[:now]
+      after = @sequel.select(Sequel.lit("timezone('UTC', NOW())")).first[:timezone]
       rows = @sequel[:special].select.sort_by { |r| r[:_id] }
 
       assert_instance_of(Time, rows[0][:mosql_updated])

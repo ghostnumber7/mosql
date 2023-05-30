@@ -7,7 +7,7 @@ module MoSQL
   class CLI
     include MoSQL::Logging
 
-    BATCH       = 1000
+    BATCH = 1000
 
     attr_reader :args, :options, :tailer
 
@@ -37,8 +37,10 @@ module MoSQL
         :collections => 'collections.yml',
         :sql    => 'postgres:///',
         :mongo  => 'mongodb://localhost',
-        :verbose => 0
+        :verbose => 0,
+        :threads => 0
       }
+
       optparse = OptionParser.new do |opts|
         opts.banner = "Usage: #{$0} [options] "
 
@@ -106,6 +108,10 @@ module MoSQL
         # eg, --oplog-filter '{"ns": {"$regex": "^somedb[0-9]*\\.collection$"}}'
         opts.on("--oplog-filter [filter]", "An additional JSON filter for the oplog query") do |filter|
           @options[:oplog_filter] = JSON.parse(filter)
+        end
+
+        opts.on("-j", "--parallel [threads]", "Number of threads to use for import or reimport") do |threads|
+          @options[:threads] = threads.to_i
         end
       end
 

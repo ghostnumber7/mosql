@@ -36,20 +36,7 @@ filter_test:
       :table: filter_sqltable
       :filter:
         :_id:
-          '$gte': !ruby/object:BSON::ObjectId
-            data:
-            - 83
-            - 179
-            - 75
-            - 128
-            - 0
-            - 0
-            - 0
-            - 0
-            - 0
-            - 0
-            - 0
-            - 0
+          '$gte': !!ObjectId '53b34b800000000000000000'
     :columns:
       - _id: TEXT
       - var: INTEGER
@@ -262,6 +249,35 @@ EOF
         assert(sequel[:sqltable].where(:_id => objs[2].first, :var => 3).count)
       end
 
+      it 'handles conflicts' do
+        objs = [
+          { '_id' => BSON::ObjectId.new, 'var' => 0 },
+          { '_id' => BSON::ObjectId.new, 'var' => 1, 'arry' => [1, 2] },
+          { '_id' => BSON::ObjectId.new, 'var' => 3 },
+        ].map { |o| @map.transform('mosql_test.collection', o) }
+
+        objs2 = [
+          { '_id' => objs[0].first, 'var' => 1, 'arry' => [1, 2] },
+          { '_id' => objs[1].first, 'var' => 2 },
+          { '_id' => BSON::ObjectId.new, 'var' => 4 },
+        ].map { |o| @map.transform('mosql_test.collection', o) }
+
+        @streamer.bulk_upsert(sequel[:sqltable], 'mosql_test.collection', objs)
+
+        assert_equal(1, sequel[:sqltable].where(:_id => objs[0].first, :var => 0).count)
+        assert_equal(1, sequel[:sqltable].where(:_id => objs[1].first, :var => 1).count)
+        assert_equal([1, 2], sequel[:sqltable].where(:_id => objs[1].first).first[:arry])
+        assert_equal(1, sequel[:sqltable].where(:_id => objs[2].first, :var => 3).count)
+
+        @streamer.bulk_upsert(sequel[:sqltable], 'mosql_test.collection', objs2)
+
+        assert_equal(1, sequel[:sqltable].where(:_id => objs[0].first, :var => 1).count)
+        assert_equal([1, 2], sequel[:sqltable].where(:_id => objs[0].first).first[:arry])
+        assert_equal(1, sequel[:sqltable].where(:_id => objs[1].first, :var => 2).count)
+        assert_nil(sequel[:sqltable].where(:_id => objs[1].first).first[:arry])
+        assert_equal(1, sequel[:sqltable].where(:_id => objs2[2].first, :var => 4).count)
+      end
+
       it 'upserts' do
         _id = BSON::ObjectId.new
         objs = [
@@ -280,13 +296,54 @@ EOF
         @streamer.bulk_upsert(sequel[:sqltable], 'mosql_test.collection',
                               newobjs)
 
-
         assert(sequel[:sqltable].where(:_id => newobjs[0].first, :var => 117).count)
         assert(sequel[:sqltable].where(:_id => newobjs[1].first, :var => 32).count)
       end
 
+      it 'fallbacks to single upsert' do
+        @streamer.options[:unsafe] = true
+
+        objs_ok = [
+          { '_id' => 'a', 'var' => 0 },
+          { '_id' => 'b', 'var' => 3 },
+        ].map { |o| @map.transform('mosql_test.collection', o) }
+
+        objs_error = [
+          { '_id' => 'c', 'var' => 0 },
+          { '_id' => 'd', 'var' => 1 << 62 },
+          { '_id' => 'e', 'var' => 3 },
+        ].map { |o| @map.transform('mosql_test.collection', o) }
+
+        # If everything is OK it should not insert one by one
+        assert_method_not_called(@streamer, :bulk_upsert_each) do
+          @streamer.bulk_upsert(sequel[:sqltable], 'mosql_test.collection', objs_ok)
+        end
+
+        assert_equal(1, sequel[:sqltable].where(:_id => 'a').count)
+        assert_equal(1, sequel[:sqltable].where(:_id => 'b').count)
+
+        # If there is an error it should insert one by one
+        assert_method_called(@streamer, :bulk_upsert_each, 1) do
+          @streamer.bulk_upsert(sequel[:sqltable], 'mosql_test.collection', objs_error)
+        end
+
+        assert_equal(1, sequel[:sqltable].where(:_id => 'c').count)
+        assert_equal(0, sequel[:sqltable].where(:_id => 'd').count) # Bad one got skipped
+        assert_equal(1, sequel[:sqltable].where(:_id => 'e').count)
+      end
+
       describe 'when working with --unsafe' do
+        before do
+          @objs = [
+            { '_id' => 'b', 'var' => 1 << 62 },
+          ].map { |o| @map.transform('mosql_test.collection', o) }
+        end
+
         it 'raises on error by default' do
+          assert_raises(Sequel::DatabaseError) do
+            @streamer.bulk_upsert(sequel[:sqltable], 'mosql_test.collection', @objs)
+          end
+
           assert_raises(Sequel::DatabaseError) do
             @streamer.handle_op({ 'ns' => 'mosql_test.collection',
                                   'op' => 'u',
@@ -298,6 +355,10 @@ EOF
 
         it 'does not raises on error with :unsafe' do
           @streamer.options[:unsafe] = true
+
+          @streamer.bulk_upsert(sequel[:sqltable], 'mosql_test.collection', @objs)
+          assert_equal(0, sequel[:sqltable].where(:_id => 'b').count)
+
           @streamer.handle_op({ 'ns' => 'mosql_test.collection',
                                 'op' => 'u',
                                 'o2' => { '_id' => 'a' },
