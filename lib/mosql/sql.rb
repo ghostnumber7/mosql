@@ -11,15 +11,18 @@ module MoSQL
     end
 
     def connect_db(uri, pgschema)
-      @db = Sequel.connect(uri, :after_connect => proc do |conn|
-                             if pgschema
-                               begin
-                                 conn.execute("CREATE SCHEMA \"#{pgschema}\"")
-                               rescue PG::Error
-                               end
-                               conn.execute("SET search_path TO \"#{pgschema}\"")
-                             end
-                           end)
+      @db = Sequel.connect(
+        uri,
+        :after_connect => proc do |conn|
+          if pgschema
+            begin
+              conn.execute("CREATE SCHEMA \"#{pgschema}\"")
+            rescue PG::Error
+            end
+            conn.execute("SET search_path TO \"#{pgschema}\"")
+          end
+        end
+      )
     end
 
     def table_for_ns(ns)

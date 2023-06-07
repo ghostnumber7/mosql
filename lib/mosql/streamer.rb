@@ -181,15 +181,27 @@ module MoSQL
     end
 
     def optail
-      tail_from = options[:tail_from]
+      tail_from = @last_ts || options[:tail_from]
       if tail_from.is_a? Time
         tail_from = tailer.most_recent_position(tail_from)
       end
       tailer.tail(:from => tail_from, :filter => options[:oplog_filter])
       until @done
-        tailer.stream(1000) do |op|
+        has_more = tailer.stream(1000) do |op|
           handle_op(op)
         end
+
+        if !has_more
+          break
+        end
+      end
+
+      if !@done
+        # Cursor has no more data or has timed out.
+        # We need to open a new cursor to continue tailing.
+        tailer.close
+        sleep(1)
+        optail
       end
     end
 
@@ -210,6 +222,8 @@ module MoSQL
         log.warn("Weird op: #{op.inspect}")
         return
       end
+
+      @last_ts = op['ts'] if op['ts']
 
       # First, check if this was an operation performed via applyOps. If so, call handle_op with
       # for each op that was applied.
@@ -255,7 +269,7 @@ module MoSQL
           schema = @schema.find_ns!(ns)
           keys = {}
           primary_sql_keys.each do |key|
-            source =  schema[:columns].find {|c| c[:name] == key }[:source]
+            source = schema[:columns].find {|c| c[:name] == key }[:source]
             keys[source] = selector[source]
           end
 

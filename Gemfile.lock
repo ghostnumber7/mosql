@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    mosql (0.5.3)
+    mosql (0.5.4)
       bson (= 4.15.0)
       json (= 2.6.3)
       log4r (= 1.1.10)
@@ -48,7 +48,7 @@ PLATFORMS
 DEPENDENCIES
   minitest (= 5.18.0)
   mocha (= 2.0.2)
-  mongoriver (~> 1.3)!
+  mongoriver (= 1.3.1)!
   mosql!
 
 BUNDLED WITH

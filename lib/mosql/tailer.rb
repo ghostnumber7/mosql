@@ -66,6 +66,10 @@ module MoSQL
       @table.where(:service => @service).update(data)
     end
 
+    def close
+      @cursor = nil
+    end
+
     private
     def to_blob(position)
       case database_type
