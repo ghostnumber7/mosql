@@ -181,27 +181,28 @@ module MoSQL
     end
 
     def optail
-      tail_from = @last_ts || options[:tail_from]
-      if tail_from.is_a? Time
-        tail_from = tailer.most_recent_position(tail_from)
-      end
-      tailer.tail(:from => tail_from, :filter => options[:oplog_filter])
-      until @done
-        has_more = tailer.stream(1000) do |op|
-          handle_op(op)
+      loop do
+        tail_from = @last_ts || options[:tail_from]
+        if tail_from.is_a? Time
+          tail_from = tailer.most_recent_position(tail_from)
+        end
+        tailer.tail(:from => tail_from, :filter => options[:oplog_filter])
+        until @done
+          has_more = tailer.stream(1000) do |op|
+            handle_op(op)
+          end
+
+          break unless has_more
         end
 
-        if !has_more
+        if @done
           break
         end
-      end
 
-      if !@done
         # Cursor has no more data or has timed out.
         # We need to open a new cursor to continue tailing.
         tailer.close
         sleep(1)
-        optail
       end
     end
 
