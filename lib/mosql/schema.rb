@@ -198,6 +198,9 @@ module MoSQL
         end
       when Mongo::DBRef
         v.id.to_s
+      when String
+        # Remove \u0000 from strings
+        v.gsub(/[\0]/, '')
       else
         v
       end

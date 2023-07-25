@@ -233,6 +233,11 @@ EOF
       assert_equal(out[0], 1)
       assert_equal(out[1], '[1,2,3]')
     end
+
+    it 'removes \u0000 characters' do
+      out = @map.transform('db.collection', {'_id' => "row 1", 'str' => "a\u0000string", 'arry' => [1,2,3]})
+      assert_equal(["row 1", nil, 'astring', [1,2,3]], out)
+    end
   end
 
   describe 'when copying data' do
